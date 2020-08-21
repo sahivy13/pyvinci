@@ -230,27 +230,27 @@ class CocoData(Dataset):
 
 
 #-------------------------Example-----------------------------------------
-if __name__ == '__main__':
-    transform = transforms.Compose([transforms.Resize((128,128)),
-                                    transforms.ToTensor(),
-                                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-                                   ])    
-    dataset = CocoData(root = 'C:/Users/motur/coco/images/train2017',
-                            annFile = 'C:/Users/motur/coco/annotations/instances_train2017.json',
-                            category_names = ['giraffe'],
-                            transform=transform)
+# if __name__ == '__main__':
+#     transform = transforms.Compose([transforms.Resize((128,128)),
+#                                     transforms.ToTensor(),
+#                                     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+#                                    ])    
+#     dataset = CocoData(root = 'C:/Users/motur/coco/images/train2017',
+#                             annFile = 'C:/Users/motur/coco/annotations/instances_train2017.json',
+#                             category_names = ['giraffe'],
+#                             transform=transform)
     
-    dataset.discard_small(0.03)
-    train_loader = DataLoader(dataset, batch_size=1, shuffle=True)   
-    print('Number of samples: ', len(dataset))
+#     dataset.discard_small(0.03)
+#     train_loader = DataLoader(dataset, batch_size=1, shuffle=True)   
+#     print('Number of samples: ', len(dataset))
     
   
-    for num_iter, sample_batched in enumerate(train_loader,0):
-        image= sample_batched['image'][0]
-        imshow(torchvision.utils.make_grid(image))
-        plt.pause(0.001)
-        mask= sample_batched['seg_mask'][0]
-        fg_mask= sample_batched['single_fg_mask'][0]
-        imshow(torchvision.utils.make_grid(mask[0]))
-        plt.pause(0.001)
+#     for num_iter, sample_batched in enumerate(train_loader,0):
+#         image= sample_batched['image'][0]
+#         imshow(torchvision.utils.make_grid(image))
+#         plt.pause(0.001)
+#         mask= sample_batched['seg_mask'][0]
+#         fg_mask= sample_batched['single_fg_mask'][0]
+#         imshow(torchvision.utils.make_grid(mask[0]))
+#         plt.pause(0.001)
      
