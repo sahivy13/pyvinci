@@ -30,6 +30,7 @@ from networks import Discriminator, Generator_BG
 from Feature_Matching import VGGLoss
 
 parser = argparse.ArgumentParser()
+
 parser.add_argument('--log_dir', type=str, default='log',
 help='Name of the log folder')
 parser.add_argument('--save_models', type=bool, default=True,
@@ -39,51 +40,51 @@ help='Pre-trained model path')
 parser.add_argument('--pre_trained_model_epoch', type=str, default=None,
 help='Pre-trained model epoch e.g 200')
 parser.add_argument('--train_imgs_path', type=str, default='coco/images/train2017',
-    help='Path to training images')
+help='Path to training images')
 parser.add_argument('--train_annotation_path', type=str, default='coco/annotations/instances_train2017.json',
-    help='Path to annotation file, .json file')
+help='Path to annotation file, .json file')
 parser.add_argument('--category_names', type=str, default='giraffe,elephant,zebra,sheep,cow,bear',
-    help='List of categories in MS-COCO dataset')
+help='List of categories in MS-COCO dataset')
 parser.add_argument('--num_test_img', type=int, default=16,
-    help='Number of images saved during training')
+help='Number of images saved during training')
 parser.add_argument('--img_size', type=int, default=128,
-    help='Generated image size')
+help='Generated image size')
 parser.add_argument('--local_patch_size', type=int, default=128,
-    help='Image size of instance images after interpolation')
+help='Image size of instance images after interpolation')
 parser.add_argument('--batch_size', type=int, default=16,
-    help='Mini-batch size')
+help='Mini-batch size')
 parser.add_argument('--train_epoch', type=int, default=100, #Originally set at 400
-    help='Maximum training epoch')
+help='Maximum training epoch')
 parser.add_argument('--lr', type=float, default=0.0002,
-    help='Initial learning rate')
+help='Initial learning rate')
 parser.add_argument('--optim_step_size', type=int, default=20, #Originally set at 80
-    help='Learning rate decay step size')
+help='Learning rate decay step size')
 parser.add_argument('--optim_gamma', type=float, default=0.5,
-    help='Learning rate decay ratio')
+help='Learning rate decay ratio')
 parser.add_argument('--critic_iter', type=int, default=5,
-    help='Number of discriminator update against each generator update')
+help='Number of discriminator update against each generator update')
 parser.add_argument('--noise_size', type=int, default=128,
-    help='Noise vector size')
-    parser.add_argument('--lambda_FM', type=float, default=1,
-    help='Trade-off param for feature matching loss')
-    parser.add_argument('--lambda_branch', type=float, default=100,
-    help='Trade-off param for reconstruction loss')
-    parser.add_argument('--num_res_blocks', type=int, default=2,
-    help='Number of residual block in generator shared part')
-    parser.add_argument('--num_res_blocks_fg', type=int, default=2,
-    help='Number of residual block in non-bg branch')
-    parser.add_argument('--num_res_blocks_bg', type=int, default=0,
-    help='Number of residual block in generator bg branch')
-    parser.add_argument('--num_workers', type=int, default=4, #Added for TPU purposes
-    help='Number of workers to be utilized on device')
-    parser.add_argument('--num_cores', type=int, default=8, #Added for TPU purposes
-    help='Number of cores to be on device')
+help='Noise vector size')
+parser.add_argument('--lambda_FM', type=float, default=1,
+help='Trade-off param for feature matching loss')
+parser.add_argument('--lambda_branch', type=float, default=100,
+help='Trade-off param for reconstruction loss')
+parser.add_argument('--num_res_blocks', type=int, default=2,
+help='Number of residual block in generator shared part')
+parser.add_argument('--num_res_blocks_fg', type=int, default=2,
+help='Number of residual block in non-bg branch')
+parser.add_argument('--num_res_blocks_bg', type=int, default=0,
+help='Number of residual block in generator bg branch')
+parser.add_argument('--num_workers', type=int, default=4, #Added for TPU purposes
+help='Number of workers to be utilized on device')
+parser.add_argument('--num_cores', type=int, default=8, #Added for TPU purposes
+help='Number of cores to be on device')
     
-    opt = parser.parse_args()
+opt = parser.parse_args()
+FLAGS = vars(opt) #Added for TPU purposes
+print(opt)
 
 def main(rank): #Modified for TPU purposes
-
-    print(opt)
 
     #Seed - Added for TPU purposes
     torch.manual_seed(1)
@@ -91,8 +92,8 @@ def main(rank): #Modified for TPU purposes
     #Create log folder
     root = 'result_bg/'
     model = 'coco_model_'
-    result_folder_name = 'images_' + opt.log_dir
-    model_folder_name = 'models_' + opt.log_dir
+    result_folder_name = 'images_' + FLAGS['log_dir']
+    model_folder_name = 'models_' + FLAGS['log_dir']
     if not os.path.isdir(root):
         os.mkdir(root)
     if not os.path.isdir(root + result_folder_name):
@@ -104,22 +105,24 @@ def main(rank): #Modified for TPU purposes
     copyfile(os.path.basename(__file__), root + result_folder_name + '/' + os.path.basename(__file__))
     
     #Define transformation for dataset images - e.g scaling
-    transform = transforms.Compose([transforms.Scale((opt.img_size,opt.img_size)),transforms.ToTensor(),
-                                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),]) 
+    transform = transforms.Compose(
+        [transforms.Scale((FLAGS['img_size'],
+        FLAGS['img_size'])),transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),]) 
     
     #Load dataset
-    category_names = opt.category_names.split(',')
+    category_names = FLAGS['category_names'].split(',')
 
     #Serial Executor - This is needed to spread inside TPU for memory purposes
     SERIAL_EXEC = xmp.MpSerialExecutor()
 
     #Define Dataset
     dataset = SERIAL_EXEC.run(lambda: CocoData( #Modified for TPU purposes
-        root = opt.train_imgs_path,
-        annFile = opt.train_annotation_path,
+        root = FLAGS['train_imgs_path'],
+        annFile = FLAGS['train_annotation_path'],
         category_names = category_names,
         transform=transform,
-        final_img_size=opt.img_size
+        final_img_size=FLAGS['img_size']
         )
     )
 
@@ -137,9 +140,9 @@ def main(rank): #Modified for TPU purposes
     #Define data loader
     train_loader = DataLoader( #Modified for TPU purposes
         dataset,
-        batch_size=opt.batch_size,
+        batch_size=FLAGS['batch_size'],
         sampler=train_sampler,
-        num_workers=opt.num_workers
+        num_workers=FLAGS['num_workers']
         shuffle=True)
 
     #Define device - Added for TPU purposes
@@ -148,18 +151,18 @@ def main(rank): #Modified for TPU purposes
     #For evaluation define fixed masks and noises
     data_iter = iter(train_loader)
     sample_batched = data_iter.next() 
-    y_fixed = sample_batched['seg_mask'][0:opt.num_test_img]
+    y_fixed = sample_batched['seg_mask'][0:FLAGS['num_test_img']]
     y_fixed = Variable(y_fixed.to(device)) #Modified for TPU purposes
-    z_fixed = torch.randn((opt.num_test_img, opt.noise_size))
+    z_fixed = torch.randn((FLAGS['num_test_img'], FLAGS['noise_size']))
     z_fixed= Variable(z_fixed.to(device)) #Modified for TPU purposes
         
     #Define networks
     generator = Generator_BG(
-        z_dim=opt.noise_size,
+        z_dim=FLAGS['noise_size'],
         label_channel=len(category_names),
-        num_res_blocks=opt.num_res_blocks,
-        num_res_blocks_fg=opt.num_res_blocks_fg,
-        num_res_blocks_bg=opt.num_res_blocks_bg
+        num_res_blocks=FLAGS['num_res_blocks'],
+        num_res_blocks_fg=FLAGS['num_res_blocks_fg'],
+        num_res_blocks_bg=FLAGS['num_res_blocks_bg']
     )
     discriminator = Discriminator(channels=3+len(category_names))
 
@@ -170,14 +173,14 @@ def main(rank): #Modified for TPU purposes
     D_glob = WRAPPED_DISCRIMINATOR.to(device) #Modified for TPU purposes
         
     #Load parameters from pre-trained models
-    if opt.pre_trained_model_path != None and opt.pre_trained_model_epoch != None:
+    if FLAGS['pre_trained_model_path'] != None and FLAGS['pre_trained_model_epoch'] != None:
         try:
-            G_bg.load_state_dict(xser.load(opt.pre_trained_model_path + 'G_bg_epoch_' + opt.pre_trained_model_epoch))
-            D_glob.load_state_dict(xser.load(opt.pre_trained_model_path + 'D_glob_epoch_' + opt.pre_trained_model_epoch))
+            G_bg.load_state_dict(xser.load(FLAGS['pre_trained_model_path'] + 'G_bg_epoch_' + FLAGS['pre_trained_model_epoch']))
+            D_glob.load_state_dict(xser.load(FLAGS['pre_trained_model_path'] + 'D_glob_epoch_' + FLAGS['pre_trained_model_epoch']))
 
-            print('Parameters are loaded!')
+            xm.master_print('Parameters are loaded!') #Modified for TPU Reasons
         except:
-            print('Error: Pre-trained parameters are not loaded!')
+            xm.master_print('Error: Pre-trained parameters are not loaded!') #Modified for TPU Reasons
             pass
     
     #Define training loss function - binary cross entropy
@@ -188,27 +191,27 @@ def main(rank): #Modified for TPU purposes
     criterionVGG = criterionVGG.to(device) #Modified for TPU purposes
     
     #Define optimizer
-    G_local_optimizer = optim.Adam(G_bg.parameters(), lr=opt.lr, betas=(0.0, 0.9))
-    D_local_optimizer = optim.Adam(filter(lambda p: p.requires_grad, D_glob.parameters()), lr=opt.lr, betas=(0.0,0.9))
+    G_local_optimizer = optim.Adam(G_bg.parameters(), lr=FLAGS['lr'], betas=(0.0, 0.9))
+    D_local_optimizer = optim.Adam(filter(lambda p: p.requires_grad, D_glob.parameters()), lr=FLAGS['lr'], betas=(0.0,0.9))
     
-    #Deine learning rate scheduler
-    scheduler_G = lr_scheduler.StepLR(G_local_optimizer, step_size=opt.optim_step_size, gamma=opt.optim_gamma)
-    scheduler_D = lr_scheduler.StepLR(D_local_optimizer, step_size=opt.optim_step_size, gamma=opt.optim_gamma)
+    #Define learning rate scheduler
+    scheduler_G = lr_scheduler.StepLR(G_local_optimizer, step_size=FLAGS['optim_step_size'], gamma=FLAGS['optim_gamma'])
+    scheduler_D = lr_scheduler.StepLR(D_local_optimizer, step_size=FLAGS['optim_step_size'], gamma=FLAGS['optim_gamma'])
     
     #----------------------------TRAIN---------------------------------------
-    print('training start!')
+    xm.master_print('training start!') #Added for TPU reasons
     tracker = xm.RateTracker() #Added for TPU reasons
     start_time = time.time()
     
-    for epoch in range(opt.train_epoch):
+    for epoch in range(FLAGS['train_epoch']):
         para_loader = pl.ParallelLoader(train_loader, [device]) #Added for TPU purposes
         loader = para_loader.per_device_loader(device) #Added for TPU purposes
          
         D_local_losses = []
         G_local_losses = []
     
-        y_real_ = torch.ones(opt.batch_size)
-        y_fake_ = torch.zeros(opt.batch_size)
+        y_real_ = torch.ones(FLAGS['batch_size'])
+        y_fake_ = torch.zeros(FLAGS['batch_size'])
         y_real_, y_fake_ = Variable(y_real_.to(device)), Variable(y_fake_.to(device)) #Modified for TPU purposes
         epoch_start_time = time.time()
     
@@ -216,7 +219,7 @@ def main(rank): #Modified for TPU purposes
         num_iter = 0
         while num_iter < len(loader):  
             j=0
-            while j < opt.critic_iter and num_iter < len(loader):
+            while j < FLAGS['critic_iter'] and num_iter < len(loader):
                 j += 1
                 sample_batched = data_iter.next()  
                 num_iter += 1            
@@ -231,7 +234,7 @@ def main(rank): #Modified for TPU purposes
                 D_glob.zero_grad()
                 mini_batch = x_.size()[0]
         
-                if mini_batch != opt.batch_size:
+                if mini_batch != FLAGS['batch_size']:
                     y_real_ = torch.ones(mini_batch)
                     y_fake_ = torch.zeros(mini_batch)
                     y_real_, y_fake_ = Variable(y_real_.to(device)), Variable(y_fake_.to(device))
@@ -244,7 +247,7 @@ def main(rank): #Modified for TPU purposes
                 D_real_loss.backward()
                 
                 #Fake examples
-                z_ = torch.randn((mini_batch, opt.noise_size))
+                z_ = torch.randn((mini_batch, FLAGS['noise_size']))
                 z_ = Variable(z_.to(device))
         
                 #Generate fake images
@@ -270,15 +273,15 @@ def main(rank): #Modified for TPU purposes
             #Branch-similar loss
             branch_sim_loss = mse_loss(torch.mul(G_result,(1-y_reduced) ), torch.mul(G_bg,(1-y_reduced))  )
             
-            total_loss = G_train_loss + opt.lambda_FM*FM_loss + opt.lambda_branch*branch_sim_loss
+            total_loss = G_train_loss + FLAGS['lambda_FM']*FM_loss + FLAGS['lambda_branch']*branch_sim_loss
             total_loss.backward()
             xm.optimizer_step(G_local_optimizer)
             G_local_losses.append(G_train_loss.data[0])
     
-            print('loss_d: %.3f, loss_g: %.3f' % (D_train_loss.data[0],G_train_loss.data[0]))
+            xm.master_print('loss_d: %.3f, loss_g: %.3f' % (D_train_loss.data[0],G_train_loss.data[0]))
             if (num_iter % 100) == 0:
-                print('%d - %d complete!' % ((epoch+1), num_iter))
-                print(result_folder_name)
+                xm.master_print('%d - %d complete!' % ((epoch+1), num_iter))
+                xm.master_print(result_folder_name)
 
         #Modified location of the scheduler step to avoid warning
         scheduler_G.step()
@@ -286,7 +289,7 @@ def main(rank): #Modified for TPU purposes
 
         epoch_end_time = time.time()
         per_epoch_ptime = epoch_end_time - epoch_start_time
-        print('[%d/%d] - ptime: %.2f, loss_d: %.3f, loss_g: %.3f' % ((epoch + 1), opt.train_epoch, per_epoch_ptime, torch.mean(torch.FloatTensor(D_local_losses)), torch.mean(torch.FloatTensor(G_local_losses))))
+        xm.master_print('[%d/%d] - ptime: %.2f, loss_d: %.3f, loss_g: %.3f' % ((epoch + 1), FLAGS['train_epoch'], per_epoch_ptime, torch.mean(torch.FloatTensor(D_local_losses)), torch.mean(torch.FloatTensor(G_local_losses))))
         
         #Save images
         G_bg.eval()
@@ -295,13 +298,13 @@ def main(rank): #Modified for TPU purposes
         
         if epoch == 0:
             for t in range(y_fixed.size()[1]):
-                show_result((epoch+1), y_fixed[:,t:t+1,:,:] ,save=True, path=root + result_folder_name+ '/' + model + str(epoch + 1 ) + '_masked.png')
+                show_result((epoch+1), y_fixed[:,t:t+1,:,:] ,save=True, path=root + result_folder_name + '/' + model + str(epoch + 1 ) + '_masked.png')
             
-        show_result((epoch+1),G_result ,save=True, path=root + result_folder_name+ '/' + model + str(epoch + 1 ) + '.png')
-        show_result((epoch+1),G_bg ,save=True, path=root + result_folder_name+ '/' + model + str(epoch + 1 ) + '_bg.png')
+        show_result((epoch+1),G_result ,save=True, path=root + result_folder_name + '/' + model + str(epoch + 1 ) + '.png')
+        show_result((epoch+1),G_bg ,save=True, path=root + result_folder_name + '/' + model + str(epoch + 1 ) + '_bg.png')
         
         #Save model params - Modified for TPU purposes
-        if opt.save_models and (epoch>21 and epoch % 10 == 0 ):
+        if FLAGS['save_models'] and (epoch>21 and epoch % 10 == 0 ):
             xser.save(
                 G_bg.state_dict(),
                 root + model_folder_name + '/' + model + 'G_bg_epoch_' + str(epoch) + '.pth',
@@ -317,8 +320,8 @@ def main(rank): #Modified for TPU purposes
             
     end_time = time.time()
     total_ptime = end_time - start_time
-    print("Training finish!... save training results")
-    print('Training time: ' + str(total_ptime))
+    xm.master_print("Training finish!... save training results")
+    xm.master_print('Training time: ' + str(total_ptime))
 
 if __name__ == '__main__':
     # main()
@@ -328,5 +331,4 @@ if __name__ == '__main__':
         torch.set_default_tensor_type('torch.FloatTensor')
         main(rank)
 
-    xmp.spawn(_mp_fn, args=(FLAGS,), nprocs=FLAGS['num_cores'],
-          start_method='fork')
+    xmp.spawn(_mp_fn, args=(FLAGS,), nprocs=FLAGS['num_cores'], start_method='fork')
