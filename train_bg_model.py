@@ -106,9 +106,12 @@ def main(rank): #Modified for TPU purposes
     
     #Define transformation for dataset images - e.g scaling
     transform = transforms.Compose(
-        [transforms.Scale((FLAGS['img_size'],
-        FLAGS['img_size'])),transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),]) 
+        [
+            transforms.Scale((FLAGS['img_size'],FLAGS['img_size'])),
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        ]
+    ) 
     
     #Load dataset
     category_names = FLAGS['category_names'].split(',')
@@ -116,13 +119,14 @@ def main(rank): #Modified for TPU purposes
     #Serial Executor - This is needed to spread inside TPU for memory purposes
     SERIAL_EXEC = xmp.MpSerialExecutor()
 
-    #Define Dataset
-    dataset = SERIAL_EXEC.run(lambda: CocoData( #Modified for TPU purposes
-        root = FLAGS['train_imgs_path'],
-        annFile = FLAGS['train_annotation_path'],
-        category_names = category_names,
-        transform=transform,
-        final_img_size=FLAGS['img_size']
+    #Define Dataset - Modified for TPU purposes
+    dataset = SERIAL_EXEC.run(
+        lambda: CocoData(
+            root = FLAGS['train_imgs_path'],
+            annFile = FLAGS['train_annotation_path'],
+            category_names = category_names,
+            transform=transform,
+            final_img_size=FLAGS['img_size']
         )
     )
 
@@ -131,11 +135,12 @@ def main(rank): #Modified for TPU purposes
     #dataset.discard_bad_examples('bad_examples_list.txt')
 
     #Define data sampler - Added for TPU purposes
-    train_sampler = torch.utils.data.distributed.DistributedSampler(
+    train_sampler = DistributedSampler(
         dataset,
         num_replicas=xm.xrt_world_size(),
         rank=xm.get_ordinal(),
-        shuffle=True)
+        shuffle=True
+    )
 
     #Define data loader
     train_loader = DataLoader( #Modified for TPU purposes
@@ -143,7 +148,8 @@ def main(rank): #Modified for TPU purposes
         batch_size=FLAGS['batch_size'],
         sampler=train_sampler,
         num_workers=FLAGS['num_workers']
-        shuffle=True)
+        shuffle=True
+    )
 
     #Define device - Added for TPU purposes
     device = xm.xla_device(devkind='TPU')
@@ -164,7 +170,10 @@ def main(rank): #Modified for TPU purposes
         num_res_blocks_fg=FLAGS['num_res_blocks_fg'],
         num_res_blocks_bg=FLAGS['num_res_blocks_bg']
     )
-    discriminator = Discriminator(channels=3+len(category_names))
+
+    discriminator_glob = Discriminator(
+        channels=3+len(category_names)
+    )
 
     WRAPPED_GENERATOR = xmp.MpModelWrapper(generator) #Added for TPU purposes
     WRAPPED_DISCRIMINATOR = xmp.MpModelWrapper(discriminator) #Added for TPU purposes
@@ -172,15 +181,15 @@ def main(rank): #Modified for TPU purposes
     G_bg = WRAPPED_GENERATOR.to(device) #Modified for TPU purposes
     D_glob = WRAPPED_DISCRIMINATOR.to(device) #Modified for TPU purposes
         
-    #Load parameters from pre-trained models
+    #Load parameters from pre-trained models - Modified for TPU purposes
     if FLAGS['pre_trained_model_path'] != None and FLAGS['pre_trained_model_epoch'] != None:
         try:
             G_bg.load_state_dict(xser.load(FLAGS['pre_trained_model_path'] + 'G_bg_epoch_' + FLAGS['pre_trained_model_epoch']))
             D_glob.load_state_dict(xser.load(FLAGS['pre_trained_model_path'] + 'D_glob_epoch_' + FLAGS['pre_trained_model_epoch']))
 
-            xm.master_print('Parameters are loaded!') #Modified for TPU Reasons
+            xm.master_print('Parameters are loaded!')
         except:
-            xm.master_print('Error: Pre-trained parameters are not loaded!') #Modified for TPU Reasons
+            xm.master_print('Error: Pre-trained parameters are not loaded!')
             pass
     
     #Define training loss function - binary cross entropy
@@ -191,40 +200,63 @@ def main(rank): #Modified for TPU purposes
     criterionVGG = criterionVGG.to(device) #Modified for TPU purposes
     
     #Define optimizer
-    G_local_optimizer = optim.Adam(G_bg.parameters(), lr=FLAGS['lr'], betas=(0.0, 0.9))
-    D_local_optimizer = optim.Adam(filter(lambda p: p.requires_grad, D_glob.parameters()), lr=FLAGS['lr'], betas=(0.0,0.9))
+    G_local_optimizer = optim.Adam(
+        G_bg.parameters(),
+        lr=FLAGS['lr'],
+        betas=(0.0, 0.9)
+    )
+    D_local_optimizer = optim.Adam(
+        filter(lambda p: p.requires_grad,D_glob.parameters()),
+        lr=FLAGS['lr'], 
+        betas=(0.0,0.9)
+    )
     
     #Define learning rate scheduler
-    scheduler_G = lr_scheduler.StepLR(G_local_optimizer, step_size=FLAGS['optim_step_size'], gamma=FLAGS['optim_gamma'])
-    scheduler_D = lr_scheduler.StepLR(D_local_optimizer, step_size=FLAGS['optim_step_size'], gamma=FLAGS['optim_gamma'])
+    scheduler_G = lr_scheduler.StepLR(
+        G_local_optimizer,
+        step_size=FLAGS['optim_step_size'],
+        gamma=FLAGS['optim_gamma']
+    )
+    scheduler_D = lr_scheduler.StepLR(
+        D_local_optimizer,
+        step_size=FLAGS['optim_step_size'],
+        gamma=FLAGS['optim_gamma']
+    )
     
     #----------------------------TRAIN---------------------------------------
-    xm.master_print('training start!') #Added for TPU reasons
+    xm.master_print('training start!') #Modified for TPU reasons
     tracker = xm.RateTracker() #Added for TPU reasons
     start_time = time.time()
     
     for epoch in range(FLAGS['train_epoch']):
+        epoch_start_time = time.time()
         para_loader = pl.ParallelLoader(train_loader, [device]) #Added for TPU purposes
         loader = para_loader.per_device_loader(device) #Added for TPU purposes
-         
+
         D_local_losses = []
         G_local_losses = []
     
         y_real_ = torch.ones(FLAGS['batch_size'])
         y_fake_ = torch.zeros(FLAGS['batch_size'])
-        y_real_, y_fake_ = Variable(y_real_.to(device)), Variable(y_fake_.to(device)) #Modified for TPU purposes
-        epoch_start_time = time.time()
-    
-        data_iter = iter(loader)
+        y_real_ = Variable(y_real_.to(device)) #Modified for TPU purposes
+        y_fake_ = Variable(y_fake_.to(device)) #Modified for TPU purposes
+
+        data_iter = iter(loader) #Modified for TPU purposes
         num_iter = 0
+
         while num_iter < len(loader):  
             j=0
             while j < FLAGS['critic_iter'] and num_iter < len(loader):
                 j += 1
                 sample_batched = data_iter.next()  
-                num_iter += 1            
+                num_iter += 1
+
                 x_ = sample_batched['image']
+                x_ = Variable(x_.to(device)) #Modified for TPU purposes
+
                 y_ = sample_batched['seg_mask']
+                y_ = Variable(y_.to(device)) #Modified for TPU purposes
+
                 y_reduced = torch.sum(y_,1).view(y_.size(0),1,y_.size(2),y_.size(3))
                 y_reduced = torch.clamp(y_reduced,0,1)
                 y_reduced = Variable(y_reduced.to(device)) #Modified for TPU purposes
@@ -232,14 +264,14 @@ def main(rank): #Modified for TPU purposes
                 #Update discriminators - D 
                 #Real examples
                 D_glob.zero_grad()
+
                 mini_batch = x_.size()[0]
-        
                 if mini_batch != FLAGS['batch_size']:
                     y_real_ = torch.ones(mini_batch)
                     y_fake_ = torch.zeros(mini_batch)
-                    y_real_, y_fake_ = Variable(y_real_.to(device)), Variable(y_fake_.to(device))
+                    y_real_ = Variable(y_real_.to(device)) #Modified for TPU purposes
+                    y_fake_ = Variable(y_fake_.to(device)) #Modified for TPU purposes
         
-                x_, y_ = Variable(x_.to(device)) , Variable(y_.to(device)) 
                 x_d = torch.cat([x_,y_],1)
                 
                 D_result = D_glob(x_d).squeeze()
@@ -257,7 +289,9 @@ def main(rank): #Modified for TPU purposes
                 
                 D_fake_loss = BCE_loss(D_result, y_fake_)
                 D_fake_loss.backward()
+
                 xm.optimizer_step(D_local_optimizer)
+
                 D_train_loss = D_real_loss + D_fake_loss
                 D_local_losses.append(D_train_loss.data[0])
     
@@ -271,11 +305,13 @@ def main(rank): #Modified for TPU purposes
             FM_loss = criterionVGG(G_result,x_)
             
             #Branch-similar loss
-            branch_sim_loss = mse_loss(torch.mul(G_result,(1-y_reduced) ), torch.mul(G_bg,(1-y_reduced))  )
+            branch_sim_loss = mse_loss(torch.mul(G_result,(1-y_reduced)), torch.mul(G_bg,(1-y_reduced)))
             
             total_loss = G_train_loss + FLAGS['lambda_FM']*FM_loss + FLAGS['lambda_branch']*branch_sim_loss
             total_loss.backward()
+
             xm.optimizer_step(G_local_optimizer)
+            
             G_local_losses.append(G_train_loss.data[0])
     
             xm.master_print('loss_d: %.3f, loss_g: %.3f' % (D_train_loss.data[0],G_train_loss.data[0]))
@@ -289,7 +325,8 @@ def main(rank): #Modified for TPU purposes
 
         epoch_end_time = time.time()
         per_epoch_ptime = epoch_end_time - epoch_start_time
-        xm.master_print('[%d/%d] - ptime: %.2f, loss_d: %.3f, loss_g: %.3f' % ((epoch + 1), FLAGS['train_epoch'], per_epoch_ptime, torch.mean(torch.FloatTensor(D_local_losses)), torch.mean(torch.FloatTensor(G_local_losses))))
+        xm.master_print(
+            '[%d/%d] - ptime: %.2f, loss_d: %.3f, loss_g: %.3f' % ((epoch + 1), FLAGS['train_epoch'], per_epoch_ptime, torch.mean(torch.FloatTensor(D_local_losses)), torch.mean(torch.FloatTensor(G_local_losses))))
         
         #Save images
         G_bg.eval()
@@ -298,10 +335,25 @@ def main(rank): #Modified for TPU purposes
         
         if epoch == 0:
             for t in range(y_fixed.size()[1]):
-                show_result((epoch+1), y_fixed[:,t:t+1,:,:] ,save=True, path=root + result_folder_name + '/' + model + str(epoch + 1 ) + '_masked.png')
+                show_result(
+                    (epoch+1),
+                    y_fixed[:,t:t+1,:,:],
+                    save=True,
+                    path=root + result_folder_name + '/' + model + str(epoch + 1 ) + '_masked.png'
+                )
             
-        show_result((epoch+1),G_result ,save=True, path=root + result_folder_name + '/' + model + str(epoch + 1 ) + '.png')
-        show_result((epoch+1),G_bg ,save=True, path=root + result_folder_name + '/' + model + str(epoch + 1 ) + '_bg.png')
+        show_result(
+            (epoch+1),
+            G_result,
+            save=True,
+            path=root + result_folder_name + '/' + model + str(epoch + 1 ) + '.png'
+        )
+        show_result(
+            (epoch+1),
+            G_bg,
+            save=True,
+            path=root + result_folder_name + '/' + model + str(epoch + 1 ) + '_bg.png'
+        )
         
         #Save model params - Modified for TPU purposes
         if FLAGS['save_models'] and (epoch>21 and epoch % 10 == 0 ):
