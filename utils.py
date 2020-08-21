@@ -33,12 +33,10 @@ def show_result(num_epoch,test_images, show = False, save = False, path = 'resul
     else:
         plt.close()
         
-
 def imshow(img):
     img = img / 2 + 0.5     # unnormalize
     npimg = img.numpy()
     plt.imshow(np.transpose(npimg, (1, 2, 0)))
-
 
 def mse_loss(input, target):
     return torch.sum((input - target)**2) / input.data.nelement()

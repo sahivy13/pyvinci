@@ -182,8 +182,8 @@ class CocoData(Dataset):
 #                                     transforms.ToTensor(),
 #                                     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
 #                                    ])    
-#     dataset = CocoData(root = '/Users/sahivygonalez/Documents/Sequential Image Generation with GANs/Seq_Scene_Gen/images/train2017',
-#                             annFile = '/Users/sahivygonalez/Documents/Sequential Image Generation with GANs/Seq_Scene_Gen/annotations/instances_train2017.json',
+#     dataset = CocoData(root = 'coco/images/train2017',
+#                             annFile = 'coco/annotations/instances_train2017.json',
 #                             category_names = ['elephant'],
 #                             transform=transform)
     

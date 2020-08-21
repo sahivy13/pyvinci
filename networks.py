@@ -4,9 +4,9 @@ import torch.nn.functional as F
 from spectral_normalization import SpectralNorm
 import numpy as np
 
-channels = 3
-GEN_SIZE=128
-DISC_SIZE=128
+channels= 3
+GEN_SIZE= 128
+DISC_SIZE= 128
 
 class ResBlockGenerator(nn.Module):
 
@@ -56,8 +56,7 @@ class ResBlockGenerator2(nn.Module):
 
     def forward(self, x):
         return self.model(x) + x
-    
-    
+      
 class ResBlockDiscriminator(nn.Module):
 
     def __init__(self, in_channels, out_channels, stride=1):
@@ -123,7 +122,6 @@ class FirstResBlockDiscriminator(nn.Module):
     def forward(self, x):
         return self.model(x) + self.bypass(x)
 
-
 class Discriminator(nn.Module):
     def __init__(self, channels=channels, input_size=128):
         super(Discriminator, self).__init__()
@@ -145,7 +143,6 @@ class Discriminator(nn.Module):
         x = self.model(x).view(-1,DISC_SIZE)
         x = self.fc(x)
         return self.activation( x )
-
 
 class Generator_BG(nn.Module):
     def __init__(self, z_dim, label_channel=0, num_res_blocks=2, num_res_blocks_fg=0, num_res_blocks_bg=0):
@@ -216,8 +213,6 @@ class Generator_BG(nn.Module):
         x_non_bg = self.model3_res(x_non_bg)
         x_non_bg = self.model3(x_non_bg)
         return x_non_bg, x
-    
-
 
 class Generator_FG(nn.Module):
     #Noise summary and mask concat at 16x16 level and start generating image
@@ -282,49 +277,4 @@ class Generator_FG(nn.Module):
         x = torch.cat([x,prev_img],1)
         x = self.model4(x)
         return x            
-
-
-
-class Generator_Baseline(nn.Module):
-    def __init__(self, z_dim, label_channel=0, num_res_blocks=2):
-        super(Generator_Baseline, self).__init__()
-        self.z_dim = z_dim
-        self.num_res_blocks = num_res_blocks
-        
-        self.dense = nn.Linear(self.z_dim, 16 * 16 * GEN_SIZE)
-        nn.init.xavier_uniform(self.dense.weight.data, 1.)
-        
-        self.final = nn.Conv2d(GEN_SIZE*5//2, channels, 3, stride=1, padding=1)
-        nn.init.xavier_uniform(self.final.weight.data, 1.)
-        
-        self.cond_64 = nn.Conv2d(int(label_channel), GEN_SIZE//2, 4, 2, 1, bias=False)
-        self.cond_64_BN = nn.BatchNorm2d(GEN_SIZE//2) 
-        nn.init.xavier_uniform(self.cond_64.weight.data, 1.)
-        self.cond_16 = nn.AvgPool2d(4)
-        
-
-        self.model1 = nn.Sequential()
-        for j in range(self.num_res_blocks):
-            self.model1.add_module(str(j), ResBlockGenerator2(GEN_SIZE*3//2, GEN_SIZE*3//2))
-        
-        
-        self.model2 = nn.Sequential(
-            ResBlockGenerator(GEN_SIZE*5//2, GEN_SIZE*5//2, stride=2),
-            ResBlockGenerator(GEN_SIZE*5//2, GEN_SIZE*5//2, stride=2),
-            ResBlockGenerator(GEN_SIZE*5//2, GEN_SIZE*5//2, stride=2),
-            nn.BatchNorm2d(GEN_SIZE*5//2),
-            nn.ReLU(),
-            self.final,
-            nn.Tanh())
-        
-    def forward(self, z, y):
-        z = self.dense(z).view(-1, GEN_SIZE, 16, 16) 
-        y = self.cond_16( F.relu(self.cond_64_BN(self.cond_64(y) )))
-
-        x = torch.cat([z,y],1)
-        x = self.model1(x)
-        
-        x = torch.cat([z,x],1)
-        x = self.model2(x)
-     
-        return x            
+         

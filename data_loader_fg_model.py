@@ -235,8 +235,8 @@ class CocoData(Dataset):
 #                                     transforms.ToTensor(),
 #                                     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
 #                                    ])    
-#     dataset = CocoData(root = 'C:/Users/motur/coco/images/train2017',
-#                             annFile = 'C:/Users/motur/coco/annotations/instances_train2017.json',
+#     dataset = CocoData(root = 'coco/images/train2017',
+#                             annFile = 'coco/annotations/instances_train2017.json',
 #                             category_names = ['giraffe'],
 #                             transform=transform)
     

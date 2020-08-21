@@ -5,7 +5,6 @@ from torch.nn import Parameter
 def l2normalize(v, eps=1e-12):
     return v / (v.norm() + eps)
 
-
 class SpectralNorm(nn.Module):
     def __init__(self, module, name='weight', power_iterations=10):
         super(SpectralNorm, self).__init__()

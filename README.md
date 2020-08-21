@@ -1,1 +1,1 @@
-# pyvinci
+# PyVinci GANs
