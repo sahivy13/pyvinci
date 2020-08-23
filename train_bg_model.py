@@ -164,7 +164,7 @@ def main(rank): #Modified for TPU purposes
         batch_size=FLAGS['batch_size'],
         sampler=train_sampler,
         num_workers=FLAGS['num_workers'],
-        shuffle=True
+        # shuffle=True
     )
 
     #Define device - Added for TPU purposes
