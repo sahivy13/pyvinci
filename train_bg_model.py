@@ -115,20 +115,20 @@ transform = transforms.Compose(
 ) 
 
 #Networks
-    generator = Generator_BG(
-        z_dim=FLAGS['noise_size'],
-        label_channel=len(category_names),
-        num_res_blocks=FLAGS['num_res_blocks'],
-        num_res_blocks_fg=FLAGS['num_res_blocks_fg'],
-        num_res_blocks_bg=FLAGS['num_res_blocks_bg']
-    )
+generator = Generator_BG(
+    z_dim=FLAGS['noise_size'],
+    label_channel=len(category_names),
+    num_res_blocks=FLAGS['num_res_blocks'],
+    num_res_blocks_fg=FLAGS['num_res_blocks_fg'],
+    num_res_blocks_bg=FLAGS['num_res_blocks_bg']
+)
 
-    discriminator_glob = Discriminator(
-        channels=3+len(category_names)
-    )
+discriminator_glob = Discriminator(
+    channels=3+len(category_names)
+)
 
-    WRAPPED_GENERATOR = xmp.MpModelWrapper(generator) #Added for TPU purposes
-    WRAPPED_DISCRIMINATOR = xmp.MpModelWrapper(discriminator) #Added for TPU purposes
+WRAPPED_GENERATOR = xmp.MpModelWrapper(generator) #Added for TPU purposes
+WRAPPED_DISCRIMINATOR = xmp.MpModelWrapper(discriminator) #Added for TPU purposes
 
 def main(rank): #Modified for TPU purposes
 
