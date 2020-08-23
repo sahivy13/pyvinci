@@ -84,41 +84,57 @@ opt = parser.parse_args()
 FLAGS = vars(opt) #Added for TPU purposes
 print(opt)
 
+#Create log folder
+root = 'result_bg/'
+model = 'coco_model_'
+result_folder_name = 'images_' + FLAGS['log_dir']
+model_folder_name = 'models_' + FLAGS['log_dir']
+if not os.path.isdir(root):
+    os.mkdir(root)
+if not os.path.isdir(root + result_folder_name):
+    os.mkdir(root + result_folder_name)
+if not os.path.isdir(root + model_folder_name):
+    os.mkdir(root + model_folder_name)
+
+#Load dataset
+category_names = FLAGS['category_names'].split(',')
+
+# #Save the script
+# copyfile(os.path.basename(__file__), root + result_folder_name + '/' + os.path.basename(__file__))
+
+#Serial Executor - This is needed to spread inside TPU for memory purposes
+SERIAL_EXEC = xmp.MpSerialExecutor()
+
+#Define transformation for dataset images - e.g scaling
+transform = transforms.Compose(
+    [
+        transforms.Scale((FLAGS['img_size'],FLAGS['img_size'])),
+        transforms.ToTensor(),
+        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    ]
+) 
+
+#Networks
+    generator = Generator_BG(
+        z_dim=FLAGS['noise_size'],
+        label_channel=len(category_names),
+        num_res_blocks=FLAGS['num_res_blocks'],
+        num_res_blocks_fg=FLAGS['num_res_blocks_fg'],
+        num_res_blocks_bg=FLAGS['num_res_blocks_bg']
+    )
+
+    discriminator_glob = Discriminator(
+        channels=3+len(category_names)
+    )
+
+    WRAPPED_GENERATOR = xmp.MpModelWrapper(generator) #Added for TPU purposes
+    WRAPPED_DISCRIMINATOR = xmp.MpModelWrapper(discriminator) #Added for TPU purposes
+
 def main(rank): #Modified for TPU purposes
 
     #Seed - Added for TPU purposes
     torch.manual_seed(1)
-
-    #Create log folder
-    root = 'result_bg/'
-    model = 'coco_model_'
-    result_folder_name = 'images_' + FLAGS['log_dir']
-    model_folder_name = 'models_' + FLAGS['log_dir']
-    if not os.path.isdir(root):
-        os.mkdir(root)
-    if not os.path.isdir(root + result_folder_name):
-        os.mkdir(root + result_folder_name)
-    if not os.path.isdir(root + model_folder_name):
-        os.mkdir(root + model_folder_name)
-        
-    #Save the script
-    copyfile(os.path.basename(__file__), root + result_folder_name + '/' + os.path.basename(__file__))
     
-    #Define transformation for dataset images - e.g scaling
-    transform = transforms.Compose(
-        [
-            transforms.Scale((FLAGS['img_size'],FLAGS['img_size'])),
-            transforms.ToTensor(),
-            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-        ]
-    ) 
-    
-    #Load dataset
-    category_names = FLAGS['category_names'].split(',')
-
-    #Serial Executor - This is needed to spread inside TPU for memory purposes
-    SERIAL_EXEC = xmp.MpSerialExecutor()
-
     #Define Dataset - Modified for TPU purposes
     dataset = SERIAL_EXEC.run(
         lambda: CocoData(
@@ -163,21 +179,6 @@ def main(rank): #Modified for TPU purposes
     z_fixed= Variable(z_fixed.to(device)) #Modified for TPU purposes
         
     #Define networks
-    generator = Generator_BG(
-        z_dim=FLAGS['noise_size'],
-        label_channel=len(category_names),
-        num_res_blocks=FLAGS['num_res_blocks'],
-        num_res_blocks_fg=FLAGS['num_res_blocks_fg'],
-        num_res_blocks_bg=FLAGS['num_res_blocks_bg']
-    )
-
-    discriminator_glob = Discriminator(
-        channels=3+len(category_names)
-    )
-
-    WRAPPED_GENERATOR = xmp.MpModelWrapper(generator) #Added for TPU purposes
-    WRAPPED_DISCRIMINATOR = xmp.MpModelWrapper(discriminator) #Added for TPU purposes
-
     G_bg = WRAPPED_GENERATOR.to(device) #Modified for TPU purposes
     D_glob = WRAPPED_DISCRIMINATOR.to(device) #Modified for TPU purposes
         
