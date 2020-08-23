@@ -375,12 +375,15 @@ def main(rank): #Modified for TPU purposes
     xm.master_print("Training finish!... save training results")
     xm.master_print('Training time: ' + str(total_ptime))
 
+#
+def _mp_fn(rank, flags):
+    global FLAGS
+    FLAGS = flags
+    torch.set_default_tensor_type('torch.FloatTensor')
+    main(rank)
+
+def run_training():
+    xmp.spawn(_mp_fn, args=(FLAGS,), nprocs=FLAGS['num_cores'], start_method='fork')
 if __name__ == '__main__':
     # main()
-    def _mp_fn(rank, flags):
-        global FLAGS
-        FLAGS = flags
-        torch.set_default_tensor_type('torch.FloatTensor')
-        main(rank)
-
-    xmp.spawn(_mp_fn, args=(FLAGS,), nprocs=FLAGS['num_cores'], start_method='fork')
+    run_training()
