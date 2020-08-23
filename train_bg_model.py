@@ -128,7 +128,7 @@ discriminator_glob = Discriminator(
 )
 
 WRAPPED_GENERATOR = xmp.MpModelWrapper(generator) #Added for TPU purposes
-WRAPPED_DISCRIMINATOR = xmp.MpModelWrapper(discriminator) #Added for TPU purposes
+WRAPPED_DISCRIMINATOR = xmp.MpModelWrapper(discriminator_glob) #Added for TPU purposes
 
 def main(rank): #Modified for TPU purposes
 
