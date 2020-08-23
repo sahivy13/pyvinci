@@ -147,7 +147,7 @@ def main(rank): #Modified for TPU purposes
         dataset,
         batch_size=FLAGS['batch_size'],
         sampler=train_sampler,
-        num_workers=FLAGS['num_workers']
+        num_workers=FLAGS['num_workers'],
         shuffle=True
     )
 
@@ -311,7 +311,7 @@ def main(rank): #Modified for TPU purposes
             total_loss.backward()
 
             xm.optimizer_step(G_local_optimizer)
-            
+
             G_local_losses.append(G_train_loss.data[0])
     
             xm.master_print('loss_d: %.3f, loss_g: %.3f' % (D_train_loss.data[0],G_train_loss.data[0]))
