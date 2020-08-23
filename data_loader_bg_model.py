@@ -104,7 +104,7 @@ class CocoData(Dataset):
             idx_list.remove(idx)
             instance = target[idx]
 
-            mask = Image.new('L', (img_size_x, img_size_y))
+            mask = Image.new('RGB', (img_size_x, img_size_y)) #Mode used to be "L"
             for j in range(len(instance['segmentation'])):
                 poly = instance['segmentation'][j]
                 ImageDraw.Draw(mask).polygon(poly, outline=1, fill=1)
