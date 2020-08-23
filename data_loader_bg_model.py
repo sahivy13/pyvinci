@@ -51,7 +51,7 @@ class CocoData(Dataset):
         self.final_img_size = final_img_size     
         self.transform2 = transforms.Compose(
             [
-                transforms.Scale((self.final_img_size,self.final_img_size)),
+                transforms.Resize((final_img_size,final_img_size)),
                 transforms.ToTensor(),
             ]
         )

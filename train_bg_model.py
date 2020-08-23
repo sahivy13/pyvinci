@@ -108,7 +108,7 @@ SERIAL_EXEC = xmp.MpSerialExecutor()
 #Define transformation for dataset images - e.g scaling
 transform = transforms.Compose(
     [
-        transforms.Scale((FLAGS['img_size'],FLAGS['img_size'])),
+        transforms.Resize((FLAGS['img_size'],FLAGS['img_size'])),
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
     ]
