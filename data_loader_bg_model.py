@@ -49,10 +49,12 @@ class CocoData(Dataset):
         self.transform = transform
         self.target_transform = target_transform
         self.final_img_size = final_img_size     
-        self.transform2 = transforms.Compose([
-                                               transforms.Scale((final_img_size,final_img_size)),
-                                               transforms.ToTensor(),
-                                           ])
+        self.transform2 = transforms.Compose(
+            [
+                transforms.Scale((final_img_size,final_img_size)),
+                transforms.ToTensor(),
+            ]
+        )
     
         
         if category_names == None:

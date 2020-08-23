@@ -37,10 +37,12 @@ class CocoData(Dataset):
         self.transform = transform
         self.target_transform = target_transform
         self.final_img_size = final_img_size     
-        self.transform2 = transforms.Compose([
-                                               transforms.Scale((final_img_size,final_img_size)),
-                                               transforms.ToTensor(),
-                                           ])
+        self.transform2 = transforms.Compose(
+            [
+                transforms.Scale((final_img_size,final_img_size)),
+                transforms.ToTensor(),
+            ]
+        )
     
         
         if category_names == None:
@@ -143,7 +145,7 @@ class CocoData(Dataset):
             mask_instance_1 = mask_instance_1.crop((int(x1), int(y1), int(x2), int(y2) ))
             mask_instance_1 = self.transform2(mask_instance_1)
             if torch.max(mask_instance_1) != 0:
-                    mask_instance_1 = mask_instance_1/torch.max(mask_instance_1)
+                mask_instance_1 = mask_instance_1/torch.max(mask_instance_1)
             
             mask_instance = torch.zeros([len(self.category),self.final_img_size,self.final_img_size])
             mask_instance[single_fg_obj_ctg,:,:] = mask_instance_1  
