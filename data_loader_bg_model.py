@@ -51,7 +51,7 @@ class CocoData(Dataset):
         self.final_img_size = final_img_size     
         self.transform2 = transforms.Compose(
             [
-                transforms.Scale((final_img_size,final_img_size)),
+                transforms.Scale((self.final_img_size,self.final_img_size)),
                 transforms.ToTensor(),
             ]
         )
@@ -104,7 +104,7 @@ class CocoData(Dataset):
             idx_list.remove(idx)
             instance = target[idx]
 
-            mask = Image.new('RGB', (img_size_x, img_size_y)) #Mode used to be "L"
+            mask = Image.new('L', (img_size_x, img_size_y)) #Mode used to be "L"
             for j in range(len(instance['segmentation'])):
                 poly = instance['segmentation'][j]
                 ImageDraw.Draw(mask).polygon(poly, outline=1, fill=1)
