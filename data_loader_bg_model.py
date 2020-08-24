@@ -76,7 +76,7 @@ class CocoData(Dataset):
         img_size = img.size
         img_size_x = img_size[0]
         img_size_y = img_size[1]
-        seg_masks = torch.zeros([len(self.category),self.final_img_size,self.final_img_size])
+        seg_masks = torch.zeros([len(self.category),1,self.final_img_size,self.final_img_size])
         instance_types = []
         
         for i in range(len(target)):    
@@ -185,7 +185,7 @@ class CocoData(Dataset):
 #     for num_iter, sample_batched in enumerate(train_loader,0):
 #         img_id = sample_batched['id'][0]
 #         image = dataset[num_iter]
-#         image = image['img']
+
 #         imshow(torchvision.utils.make_grid(image))
 #         plt.pause(0.001)
       
